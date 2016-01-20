@@ -80,11 +80,11 @@ testexist getELMInstancesSeqs.py
 # Write list of files to process
 if [ ! -f ./files.lst ]
 then
-#  ls "$dirjpred"/*.fasta | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
+  ls "$dirjpred"/*.fasta | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
 # Sample subsets for testing
-  ls "$dirjpred"/sp-P05067-A4_HUMAN.jnet | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
-# ls /home/npalopoli/20150924_ELM-Struct/JPred/elm_instances.fasta_dir_output/sp-P43489-TNR4_HUMAN.jnet | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
-# ls $dir/*DROME.fasta | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
+#  ls "$dirjpred"/sp-P05067-A4_HUMAN.jnet | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
+#  ls /home/npalopoli/20150924_ELM-Struct/JPred/elm_instances.fasta_dir_output/sp-P43489-TNR4_HUMAN.jnet | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
+#  ls $dir/*DROME.fasta | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
 fi
 
 # Check/create output directory
@@ -93,36 +93,27 @@ then
   mkdir ./getELMInstancesSeqs_output
 fi
 
-### START ###
-
-# Remove result files if existing
+# Remove temporary/output files if existing
+testrm getELMInstancesSeqs.tmp
 testrm files_fasta.lst
-testrm getELMInstancesSeqs_output/tmp.fasta
 testrm getELMInstancesSeqs_all.fasta
 
-# Run getELMInstancesSeqs.py for each in files.lst
-#while read line
-#do
-#  accession=`head -1 "$dirjpred"/"$line".fasta | cut -d'|' -f 2`
-#  ./getELMInstancesSeqs.py "$dirjpred"/"$line".fasta "$inelm" "$accession" >getELMInstancesSeqs_output/"$line".fasta
-#  echo "$line".fasta >>files_fasta.lst
-#done <files.lst
+### START ###
 
 # Run getELMInstancesSeqs.py for each in files.lst
 while read line
 do
+  touch getELMInstancesSeqs.tmp
   accession=`head -1 "$dirjpred"/"$line".fasta | cut -d'|' -f 2`
-  ./getELMInstancesSeqs.py "$dirjpred"/"$line".fasta "$inelm" "$accession" >getELMInstancesSeqs_output/tmp.fasta
-  elmacc=`head -1 getELMInstancesSeqs_output/tmp.fasta | cut -d'|' -f 4`
-  dbid=`head -1 getELMInstancesSeqs_output/tmp.fasta | cut -d'>' -f 1 | cut -d'|' -f 1`
-  uniprotacc=`head -1 getELMInstancesSeqs_output/tmp.fasta | cut -d'|' -f 2`
-  uniprotname=`head -1 getELMInstancesSeqs_output/tmp.fasta | cut -d'|' -f 3`
-  outname="$elmacc"-"$dbid"-"$uniprotacc"-"$uniprotname"
-  mv getELMInstancesSeqs_output/tmp.fasta getELMInstancesSeqs_output/"$outname".fasta
-  echo "$outname".fasta >>files_fasta.lst
-done <files.lst
+  ./getELMInstancesSeqs.py "$dirjpred"/"$line".fasta "$inelm" "$accession"
+  for i in `find . -newer getELMInstancesSeqs.tmp | tail -n +2`
+  do
+    mv "$i" getELMInstancesSeqs_output/.
+  done
+done<files.lst
 
 # Collect results in single output
+(cd getELMInstancesSeqs_output && ls) >files_fasta.lst
 while read line
 do
   cat getELMInstancesSeqs_output/"$line" >>getELMInstancesSeqs_all.fasta
@@ -130,5 +121,6 @@ do
 done<files_fasta.lst
 
 # Cleanup
+testrm getELMInstancesSeqs.tmp
 testrm files.lst
 testrm files_fasta.lst

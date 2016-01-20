@@ -68,6 +68,7 @@ def placeELM(seq,ELMpos):
   seq['ELMacc'] = list('-' * len(seq['res']))
   seq['ELMType'] = list('-' * len(seq['res']))
   seq['ELMIdentifier'] = list('-' * len(seq['res']))
+  seq['ELMflank'] = list('-' * len(seq['res']))
 #  for accession, limits in ELMpos.iteritems():
 #    for pos in range(int(limits[0])-1,int(limits[1])):
   for accession, vals in ELMpos.iteritems():
@@ -81,6 +82,18 @@ def placeELM(seq,ELMpos):
         seq['ELMacc'][pos] = seq['ELMacc'][pos] + accession
         seq['ELMType'][pos] = seq['ELMType'][pos] + vals[2]
         seq['ELMIdentifier'][pos] = seq['ELMIdentifier'][pos] + vals[3]
+    flanksize = ( 20 + int(vals[0]) - int(vals[1])) / 2
+    flankfirst = max(0, int(vals[0]) - flanksize)
+    flanklast = min(int(vals[1]) + flanksize, len(seq['res']))
+    if (flankfirst == 0 and flanklast == len(seq['res'])):
+      continue
+    elif (flankfirst == 0):
+      flanklast = flanklast + int(vals[0]) - 1
+    elif (flanklast == len(seq['res'])):
+#      flankfirst = flankfirst - (flanksize - (flanklast - len(seq['res'])))
+      flankfirst = flankfirst - (flanklast - len(seq['res']))
+    for pos in range(flankfirst-1,flanklast):
+      seq['ELMflank'][pos] = seq['res'][pos]
   return seq
 
 # Make dict of input files
@@ -106,6 +119,12 @@ for instance in ELMpos:
   singleELMpos[instance] = ELMpos[instance]
   seq = placeELM(seq,singleELMpos)
   header = '|'.join([seq['name'][0],instance,ELMpos[instance][2],ELMpos[instance][3]])
-  print '{}{}|sequence'.format('>',''.join(header))
-  print ''.join(seq['res'])
-  print ''.join(seq['ELMpos'])
+  outname = instance + '.fasta'
+  outfile=open(outname, 'w+')
+  print >>outfile, '{}{}|sequence'.format('>',''.join(header))
+  print >>outfile, ''.join(seq['res'])
+  print >>outfile, '{}{}|instance'.format('>',''.join(header))
+  print >>outfile, ''.join(seq['ELMpos'])
+  print >>outfile, '{}{}|flanks'.format('>',''.join(header))
+  print >>outfile, ''.join(seq['ELMflank'])
+  outfile.close()
