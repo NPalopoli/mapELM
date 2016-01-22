@@ -64,11 +64,12 @@ def mapELMpositions(parsedELM,primaryAcc):
 
 def placeELM(seq,ELMpos):
   '''Map ELM to fasta sequence'''
-  seq['ELMpos'] = list('-' * len(seq['res']))
-  seq['ELMacc'] = list('-' * len(seq['res']))
-  seq['ELMType'] = list('-' * len(seq['res']))
-  seq['ELMIdentifier'] = list('-' * len(seq['res']))
-  seq['ELMflank'] = list('-' * len(seq['res']))
+  seqlen = len(seq['res'])
+  seq['ELMpos'] = list('-' * seqlen)
+  seq['ELMacc'] = list('-' * seqlen)
+  seq['ELMType'] = list('-' * seqlen)
+  seq['ELMIdentifier'] = list('-' * seqlen)
+  seq['ELMflank'] = list('-' * seqlen)
 #  for accession, limits in ELMpos.iteritems():
 #    for pos in range(int(limits[0])-1,int(limits[1])):
   for accession, vals in ELMpos.iteritems():
@@ -82,16 +83,26 @@ def placeELM(seq,ELMpos):
         seq['ELMacc'][pos] = seq['ELMacc'][pos] + accession
         seq['ELMType'][pos] = seq['ELMType'][pos] + vals[2]
         seq['ELMIdentifier'][pos] = seq['ELMIdentifier'][pos] + vals[3]
-    flanksize = ( 20 + int(vals[0]) - int(vals[1])) / 2
-    flankfirst = max(0, int(vals[0]) - flanksize)
-    flanklast = min(int(vals[1]) + flanksize, len(seq['res']))
-    if (flankfirst == 0 and flanklast == len(seq['res'])):
+#    flanksize = ( 20 + int(vals[0]) - int(vals[1])) / 2  # Compute flanking sequence
+    flanksize = 20 + int(vals[0]) - 1 - int(vals[1])  # Compute flanking sequence
+    flanksizeodd = 0 if flanksize % 2 == 0 else 1
+    flanksize = flanksize / 2
+#    flankfirst = max(0, int(vals[0]) - flanksize)
+    flankfirst = max(1, int(vals[0]) - flanksize)
+    flanklast = min(int(vals[1]) + flanksize + flanksizeodd, seqlen)
+#    if (flankfirst == 0 and flanklast == seqlen):
+    if (flankfirst == 1 and flanklast == seqlen):
       continue
-    elif (flankfirst == 0):
-      flanklast = flanklast + int(vals[0]) - 1
-    elif (flanklast == len(seq['res'])):
+#    elif (flankfirst == 0):
+    elif (flankfirst == 1):
+#      flanklast = flanklast + int(vals[0]) - 1
+#      flanklast = flanklast + flanksize + flanksizeodd + int(vals[0]) - 1
+      flanklast = flanklast + flanksize - ( int(vals[0]) - 1 )
+    elif (flanklast == seqlen):
 #      flankfirst = flankfirst - (flanksize - (flanklast - len(seq['res'])))
-      flankfirst = flankfirst - (flanklast - len(seq['res']))
+#      flankfirst = flankfirst - (flanklast - seqlen))
+#      flankfirst = flankfirst - flanksize - (flanklast - seqlen)
+      flankfirst = flankfirst - (int(vals[1]) + flanksize + flanksizeodd - seqlen)
     for pos in range(flankfirst-1,flanklast):
       seq['ELMflank'][pos] = seq['res'][pos]
   return seq
