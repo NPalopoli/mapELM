@@ -10,6 +10,8 @@
   Python Version: 2.7
 '''
 
+# Setup
+
 import sys
 from collections import OrderedDict
 import csv
@@ -21,11 +23,13 @@ try:
   inELMinstances = open(sys.argv[2])
   primaryAcc = sys.argv[3]
 except IndexError:
-  print("Input file(s) not specified. Format: ./ELMotiSt.py <in.fasta> <elm_instances[.date].tsv> <primaryAcc>")
+  print("Input file(s) not specified. Format: ./getELMInstancesSeqs.py <in.fasta> <elm_instances[.date].tsv> <primaryAcc>")
   exit()
 except IOError:
-  print("Input file(s) not found. Format: ./ELMotiSt.py <in.fasta> <elm_instances[.date].tsv> <primaryAcc>")
+  print("Input file(s) not found. Format: ./getELMInstancesSeqs.py <in.fasta> <elm_instances[.date].tsv> <primaryAcc>")
   exit()
+
+# Functions
 
 def readFasta(infasta):
   '''Store fasta sequences from file.'''
@@ -62,7 +66,7 @@ def mapELMpositions(parsedELM,primaryAcc):
       ELMpos[row['Accession']] = [row['Start'],row['End'],row['ELMType'],row['ELMIdentifier'],row['Primary_Acc']]
   return ELMpos
 
-def placeELM(seq,ELMpos):
+def placeELM(seq,ELMpos,flankn,elmflankn):
   '''Map ELM to fasta sequence'''
   seqlen = len(seq['res'])
   seq['ELMpos'] = list('-' * seqlen)
@@ -70,6 +74,10 @@ def placeELM(seq,ELMpos):
   seq['ELMType'] = list('-' * seqlen)
   seq['ELMIdentifier'] = list('-' * seqlen)
   seq['ELMflank'] = list('-' * seqlen)
+#  seq['ELMflank10'] = list('-' * seqlen)
+  flankn = 10  # change number of flanking residues
+  elmflankn = ''.join(['ELMflank',str(flankn)])
+  seq[elmflankn] = list('-' * seqlen)
 #  for accession, limits in ELMpos.iteritems():
 #    for pos in range(int(limits[0])-1,int(limits[1])):
   for accession, vals in ELMpos.iteritems():
@@ -83,29 +91,30 @@ def placeELM(seq,ELMpos):
         seq['ELMacc'][pos] = seq['ELMacc'][pos] + accession
         seq['ELMType'][pos] = seq['ELMType'][pos] + vals[2]
         seq['ELMIdentifier'][pos] = seq['ELMIdentifier'][pos] + vals[3]
-#    flanksize = ( 20 + int(vals[0]) - int(vals[1])) / 2  # Compute flanking sequence
-    flanksize = 20 + int(vals[0]) - 1 - int(vals[1])  # Compute flanking sequence
+    # Compute flanking sequence
+    flanksize = 20 + int(vals[0]) - 1 - int(vals[1])
     flanksizeodd = 0 if flanksize % 2 == 0 else 1
     flanksize = flanksize / 2
-#    flankfirst = max(0, int(vals[0]) - flanksize)
     flankfirst = max(1, int(vals[0]) - flanksize)
     flanklast = min(int(vals[1]) + flanksize + flanksizeodd, seqlen)
-#    if (flankfirst == 0 and flanklast == seqlen):
     if (flankfirst == 1 and flanklast == seqlen):
       continue
-#    elif (flankfirst == 0):
     elif (flankfirst == 1):
-#      flanklast = flanklast + int(vals[0]) - 1
-#      flanklast = flanklast + flanksize + flanksizeodd + int(vals[0]) - 1
       flanklast = flanklast + flanksize - ( int(vals[0]) - 1 )
     elif (flanklast == seqlen):
-#      flankfirst = flankfirst - (flanksize - (flanklast - len(seq['res'])))
-#      flankfirst = flankfirst - (flanklast - seqlen))
-#      flankfirst = flankfirst - flanksize - (flanklast - seqlen)
       flankfirst = flankfirst - (int(vals[1]) + flanksize + flanksizeodd - seqlen)
     for pos in range(flankfirst-1,flanklast):
       seq['ELMflank'][pos] = seq['res'][pos]
+    # Compute flanking 10 residues sequence
+#    flankn = 10  # change number of flanking residues
+    flanknfirst = max(1, int(vals[0]) - flankn)
+    flanknlast = min(int(vals[1]) + flankn, seqlen)
+    for pos in range(flanknfirst-1,flanknlast):
+#      seq['ELMflank10'][pos] = seq['res'][pos]
+      seq[elmflankn][pos] = seq['res'][pos]
   return seq
+
+# Start
 
 # Make dict of input files
 seq = readFasta(infasta)
@@ -128,7 +137,9 @@ print ''.join(seq['ELMpos'])
 for instance in ELMpos:
   singleELMpos = {}
   singleELMpos[instance] = ELMpos[instance]
-  seq = placeELM(seq,singleELMpos)
+  flankn = 10  # set number of flanking residues
+  elmflankn = ''.join(['ELMflank',str(flankn)])
+  seq = placeELM(seq,singleELMpos,flankn,elmflankn)
   header = '|'.join([seq['name'][0],instance,ELMpos[instance][2],ELMpos[instance][3]])
   outname = instance + '.fasta'
   outfile=open(outname, 'w+')
@@ -138,4 +149,6 @@ for instance in ELMpos:
   print >>outfile, ''.join(seq['ELMpos'])
   print >>outfile, '{}{}|flanks'.format('>',''.join(header))
   print >>outfile, ''.join(seq['ELMflank'])
+  print >>outfile, '{}{}|flank{}'.format('>',''.join(header),flankn)
+  print >>outfile, ''.join(seq[elmflankn])
   outfile.close()

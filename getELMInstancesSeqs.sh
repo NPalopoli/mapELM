@@ -6,7 +6,7 @@
 # File name: getELMInstancesSeqs.sh
 # Author: Nicolas Palopoli
 # Date created: 2015/10/05
-# Date last modified: 2015/11/13
+# Date last modified: 2016/02/26
 # Bash version: 4.3.11(1)-release 
 #
 ###############################################################################
@@ -84,7 +84,7 @@ then
 # Sample subsets for testing
 #  ls "$dirjpred"/sp-P05067-A4_HUMAN.jnet | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
 #  ls /home/npalopoli/20150924_ELM-Struct/JPred/elm_instances.fasta_dir_output/sp-P43489-TNR4_HUMAN.jnet | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
-#  ls $dir/*DROME.fasta | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
+#  ls "$dirjpred"/*DROME.fasta | xargs -n 1 basename | cut -d'.' -f 1 >files.lst
 fi
 
 # Check/create output directory
