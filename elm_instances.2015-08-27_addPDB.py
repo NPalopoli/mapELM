@@ -12,6 +12,7 @@
 
 # Setup
 
+import os.path
 import sys
 from collections import OrderedDict
 import csv
@@ -19,14 +20,14 @@ from Bio import SeqIO
 
 # Read input files
 try:
-  infasta = open(sys.argv[1])
-  inELMinstances = open(sys.argv[2])
-  primaryAcc = sys.argv[3]
+  inELMinstances = open(sys.argv[1])
+#  inELMPDBFinddir = open(sys.argv[2])
+  inELMPDBFinddir = sys.argv[2]
 except IndexError:
-  print("Input file(s) not specified. Format: ./getELMInstancesSeqs.py <in.fasta> <elm_instances[.date].tsv> <primaryAcc>")
+  print("Input file(s) not specified. Format: ./getELMInstancesSeqs.py <elm_instances[.date].tsv> <ELMPDBFind_files>")  #<ELMPDBFind_parseSIFTS_<ELMID>.tsv>")
   exit()
 except IOError:
-  print("Input file(s) not found. Format: ./getELMInstancesSeqs.py <in.fasta> <elm_instances[.date].tsv> <primaryAcc>")
+  print("Input file(s) not found. Format: ./getELMInstancesSeqs.py <elm_instances[.date].tsv> <ELMPDBFind_parseSIFTS_<ELMID>.tsv>")
   exit()
 
 # Functions
@@ -53,10 +54,32 @@ def readFasta(infasta):
   seqs['name'] = [name] * len(seqs['res'])
   return seqs
 
+def readELMPDBFind(indir,infilename):
+  '''Store ELM PDB mappings as list of dicts'''
+  try:
+    infile = open(os.path.sep.join([indir,infilename]))  # ELMPDBFind_parseSIFTS_ELMI002226.tsv
+  except IOError:
+    return
+  parsedELMPDB = csv.DictReader(filter(lambda row: row[0]!='#' or row[0:13]=='#ELMAccession', infile),delimiter='\t', quotechar='"', )
+  infile.close()
+  return parsedELMPDB
+
 def readELMinstances(infile):
   '''Store ELM instances information as list of dicts'''
   elm = csv.DictReader(filter(lambda row: row[0]!='#', infile),delimiter='\t', quotechar='"')
   return elm
+
+def printCSVDictReadertoFile(csvdictreader,outfile):
+  '''Print list of dicts parsed with csv.DictReader to outfile'''
+#  outfile = 'lala.outfile'
+  with open(outfile,'wb') as fou:
+    dw = csv.DictWriter(fou, delimiter='\t', fieldnames=csvdictreader.fieldnames, quoting=csv.QUOTE_ALL, lineterminator=os.linesep)
+    headers = {}
+    for n in dw.fieldnames:
+      headers[n] = n
+    dw.writerow(headers)
+    for row in csvdictreader:
+      dw.writerow(row)
 
 def mapELMpositions(parsedELM,primaryAcc):
   '''Make dict with [ELMAccession:[Start,End,ELMType,ELMIdentifier,Primary_Acc]]'''
@@ -117,12 +140,80 @@ def placeELM(seq,ELMpos,flankn,elmflankn):
 # Start
 
 # Make dict of input files
-seq = readFasta(infasta)
-infasta.close()
+#seq = readFasta(infasta)
+#infasta.close()
 
 parsedELM = readELMinstances(inELMinstances)
 inELMinstances.close()
-ELMpos = mapELMpositions(parsedELM,primaryAcc)
+#ELMpos = mapELMpositions(parsedELM,primaryAcc)
+#print parsedELM.writeheader()
+
+outfile = 'elm_instances.2015-08-27_addPDB.tsv'
+with open(outfile,'ab') as fou:
+  dw = csv.DictWriter(fou, delimiter='\t', fieldnames=parsedELM.fieldnames, quoting=csv.QUOTE_ALL, lineterminator=os.linesep)
+  headers = {}
+  for n in dw.fieldnames:
+    headers[n] = n
+  dw.writerow(headers)
+  for row in parsedELM:
+    infilename = ''.join(['ELMPDBFind_parseSIFTS_',row['Accession'],'.tsv'])  # ELMPDBFind_parseSIFTS_ELMI002226.tsv
+    parsedELMPDB = readELMPDBFind(inELMPDBFinddir,infilename)  # read ELMPDBFind_files_addheader/ELMPDBFind_parseSIFTS_ELMI002226.tsv
+    if parsedELMPDB is not None:
+#      print(parsedELMPDB)
+      for pdb in parsedELMPDB:
+#        print(pdb)
+#        print(pdb.keys())
+#        print(pdb.values())
+        if pdb["PrimAccMatch"] == '-':
+           continue
+        if pdb["PrimAccMatch"] == 'Y':
+#          row['PDB'] = row['PDB'] + ' ' + pdb["PDBID"]
+          row['PDB'] = ' '.join([row['PDB'],pdb["PDBID"]])
+    row['PDB'] = ' '.join(set(row['PDB'].split()))
+    dw.writerow(row)
+fou.close()
+exit()
+
+for row in parsedELM:
+  infilename = ''.join(['ELMPDBFind_parseSIFTS_',row['Accession'],'.tsv'])  # ELMPDBFind_parseSIFTS_ELMI002226.tsv
+  parsedELMPDB = readELMPDBFind(inELMPDBFinddir,infilename)  # read ELMPDBFind_files_addheader/ELMPDBFind_parseSIFTS_ELMI002226.tsv
+  if parsedELMPDB is not None:
+#    print(parsedELMPDB)
+    for pdb in parsedELMPDB:
+#      print(pdb)
+#      print(pdb.keys())
+#      print(pdb.values())
+      if pdb["PrimAccMatch"] is 'Y':
+        row['PDB'] = row['PDB'] + ' ' + pdb["PDBID"]
+#      row['PDB'] = row['PDB'] + pdb["PDBID"]
+#      print(row)
+#  for pdb in parsedELMPDB:
+#    print(pdb)
+#    parsedELM['PDB'] = parsedELM['PDB'] + pdb['PDBID']
+#    if (pdb['PrimAccMatch'] == 'Y'):
+#      parsedELM['PDB'] = parsedELM['PDB'] + parsedELMPDB['PDBID']
+
+#  outfilename = ''.join
+#  printCSVDictReadertoFile(
+#  inELMPDBFind.close()
+
+#print(parsedELM)
+#exit()
+
+# dr.fieldnames contains values from first row of `f`.
+outfile = 'elm_instances.2015-08-27_addPDB.tsv'
+with open(outfile,'ab') as fou:
+  dw = csv.DictWriter(fou, delimiter='\t', fieldnames=parsedELM.fieldnames, quoting=csv.QUOTE_ALL, lineterminator=os.linesep)
+  headers = {}
+  for n in dw.fieldnames:
+    headers[n] = n
+  dw.writerow(headers)
+  dw.writerow(parsedELM)
+  for row in parsedELM:
+    dw.writerow(row)
+fou.close()
+
+exit()
 '''
 print ELMpos
 seq = placeELM(seq,ELMpos)
@@ -133,6 +224,7 @@ print '{}{}|sequence'.format('>',''.join(header))
 print ''.join(seq['res'])
 #print '{}{}|{}|{}|{}|ELMInstance'.format('>',''.join(seq['name'][0]),ELMpos.keys(),ELMpos['ELMType'],ELMpos['ELMIdentifier'])
 print ''.join(seq['ELMpos'])
+'''
 '''
 for instance in ELMpos:
   singleELMpos = {}
@@ -152,3 +244,4 @@ for instance in ELMpos:
   print >>outfile, '{}{}|flank{}'.format('>',''.join(header),flankn)
   print >>outfile, ''.join(seq[elmflankn])
   outfile.close()
+'''
